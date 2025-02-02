@@ -16,10 +16,11 @@ with config_container:
     st.header("Azure OpenAI Configuration")  
     api_key = st.text_input("API Key", type="password", key="api_key")  
     endpoint = st.text_input("Endpoint URL", placeholder="https://your-endpoint.openai.azure.com/", key="endpoint_url")  
-    deployment_name = st.text_input("Model Name", value="o1-preview", key="model_name")  
+    deployment_name = st.text_input("Model Name", value="gpt-4o-global", key="model_name")  
     use_environment_key = st.checkbox("Use Environment Key", key="use_environment_key", value=True) 
     client = AzureOpenAI(
             azure_endpoint=endpoint,
+            azure_deployment=deployment_name,
             api_key=api_key,
             api_version="2024-08-01-preview"
         )    
@@ -27,12 +28,14 @@ with config_container:
     # API Key Input or Use Environment Key (.env file)
     if use_environment_key:  
         client = AzureOpenAI(
-            azure_endpoint=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-08-01-preview",
+            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
             api_key=os.getenv('AZURE_OPENAI_KEY'),
+            azure_deployment=os.getenv('AZURE_OPENAI_MODEL'),
             api_version="2024-08-01-preview"
         ) 
 
-scenario_container = st.sidebar.container()  # Create the container and assign it to a variable  
+scenario_container = st.sidebar.container()  # Create the container and assign it to a variable
+model_name = deployment_name if deployment_name else os.getenv('AZURE_OPENAI_MODEL')  
 with scenario_container:  
     st.header("Scenario")  
     industry = st.text_input("Industry", placeholder="e.g., Healthcare, Finance", key="industry")  
@@ -98,7 +101,8 @@ if __name__ == "__main__":   # Phase 1: Get the initial plan
             instructions_placeholder.empty()
 
             # Setup the MAS orchestrator
-            mas_orchestrator = MAS_orchestrator(client, pydantic_models, st, sidebar_placeholder)
+
+            mas_orchestrator = MAS_orchestrator(client, model_name, pydantic_models, st, sidebar_placeholder)
 
             plan_json, st_memory_json, lt_memory_json = mas_orchestrator.get_initial_plan(industry, use_case, user_query)
             st.session_state.plan = plan_json

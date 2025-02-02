@@ -2,8 +2,9 @@ from openai import BadRequestError
 import streamlit as st
 
 class MAS_orchestrator:
-    def __init__(self, client, pydantic_models, st, sidebar_placeholder):
+    def __init__(self, client, model, pydantic_models, st, sidebar_placeholder, ):
         self.client = client
+        self.model = model
         self.pydantic_models = pydantic_models
         self.st = st
         self.sidebar_placeholder = sidebar_placeholder
@@ -147,7 +148,7 @@ class MAS_orchestrator:
             loading_placeholder = self.st.empty()
             with self.st.spinner("Processing your query and generating initial agent composition and plan..."):
                 completion = self.client.beta.chat.completions.parse(
-                    model="GPT4o",  # Replace with your actual model deployment name
+                    model=self.model,
                     messages=[
                         {"role": "user", "content": user_message}
                     ],
@@ -211,7 +212,7 @@ class MAS_orchestrator:
         """
         try:
             completion = self.client.chat.completions.create(
-                model="GPT4o",  # Replace with your actual model deployment name
+                model=self.model,
                 messages=[
                     {"role": "user", "content": user_message}
                 ],
@@ -397,7 +398,7 @@ class MAS_orchestrator:
             loading_placeholder = self.st.empty()
             with self.st.spinner("Processing your query and generating initial agent composition and plan..."):
                 completion = self.client.beta.chat.completions.parse(
-                    model="GPT4o",  # Replace with your actual model deployment name
+                    model=self.model,
                     messages=[
                         {"role": "user", "content": prompt_content}
                     ],
@@ -456,7 +457,7 @@ class MAS_orchestrator:
                             """
         try:
             completion = self.client.chat.completions.create(
-                model="GPT4o",  # Replace with your actual model deployment name
+                model=self.model,
                 messages=[
                     {"role": "user", "content": user_message}
                 ],
@@ -655,7 +656,7 @@ class MAS_orchestrator:
             loading_placeholder = self.st.empty()
             with self.st.spinner("Processing your query and generating initial agent composition and plan..."):
                 completion = self.client.beta.chat.completions.parse(
-                    model="GPT4o",  # Replace with your actual model deployment name
+                    model=self.model,
                 messages=[
                     {"role": "user", "content": prompt_content}
                 ],
@@ -730,7 +731,7 @@ class MAS_orchestrator:
                             """
         try:
             completion = self.client.chat.completions.create(
-                model="GPT4o",  # Replace with your actual model deployment name
+                model=self.model,
                 messages=[
                     {"role": "user", "content": user_message}
                 ],
@@ -917,7 +918,7 @@ class MAS_orchestrator:
             loading_placeholder = self.st.empty()
             with self.st.spinner("Processing your query and generating initial agent composition and plan..."):  
                 completion = self.client.beta.chat.completions.parse(
-                    model="GPT4o",  # Replace with your actual model deployment name
+                    model=self.model,
                 messages=[
                         {"role": "user", "content": prompt_content}
                     ],
@@ -1117,7 +1118,7 @@ class MAS_orchestrator:
             loading_placeholder = self.st.empty()
             with self.st.spinner("Processing your query and generating initial agent composition and plan..."):
                 completion = self.client.beta.chat.completions.parse(
-                    model="GPT4o",  # Replace with your actual model deployment name
+                    model=self.model,
                 messages=[
                     {"role": "user", "content": prompt_content}
                 ],

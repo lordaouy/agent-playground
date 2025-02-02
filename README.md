@@ -36,6 +36,7 @@ The repository has learning purposes. Feel free to adapt to your own needs.
 - Python 3.8 or higher
 - Streamlit
 - Azure OpenAI API key
+- Azure OpenAI Deployment with a model which supports json_schema response format
 
 ### Installation
 

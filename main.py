@@ -1,46 +1,34 @@
-import streamlit as st
+import json, os, streamlit as st
 from openai import AzureOpenAI
 
 from src.tools import StreamlitTools, GeneralTools
-from src.pydantic_models import OverallResponse, OverallResponse1, OverallResponse2
+from src.mas import MAS_orchestrator
+import src.pydantic_models as pydantic_models
 import src.templates as templates
 
-def update_sidebar():
-    if st.session_state.plan:
-        sidebar_generator = StreamlitTools(st.session_state.plan, st.session_state.st_memory)
-        sidebar_html = sidebar_generator.generate_sidebar()
-        with sidebar_placeholder:
-            sidebar_generator.components.html(sidebar_html, height=1000, scrolling=False)
-    else:
-        with sidebar_placeholder:
-            st.write("The plan will appear here once generated.")
-
 # Render the top bar
-#components.html(top_bar_html, height=70)
 sidebar_placeholder = st.sidebar.empty() 
 
 # Sidebar Configuration  
 config_container = st.sidebar.container()  # Create the container and assign it to a variable  
+
 with config_container:  
     st.header("Azure OpenAI Configuration")  
     api_key = st.text_input("API Key", type="password", key="api_key")  
     endpoint = st.text_input("Endpoint URL", placeholder="https://your-endpoint.openai.azure.com/", key="endpoint_url")  
     deployment_name = st.text_input("Model Name", value="o1-preview", key="model_name")  
-    use_simons_key = st.checkbox("Use Simon's key", key="use_simons_key") 
-    compare_o1 = st.checkbox("Compare o1-preview", key="compare_o1-preview")  # isn't functional 
-    error_handling1 = st.checkbox("Error Handling", key="error_handling1")  #isn't functional
+    use_environment_key = st.checkbox("Use Environment Key", key="use_environment_key", value=True) 
     client = AzureOpenAI(
             azure_endpoint=endpoint,
             api_key=api_key,
             api_version="2024-08-01-preview"
-        )   
+        )    
   
-    # API Key Input or Use Simon's Key  
-    if use_simons_key:  
-        # Replace with Simon's actual API key  
+    # API Key Input or Use Environment Key (.env file)
+    if use_environment_key:  
         client = AzureOpenAI(
-            azure_endpoint="<your-endpoint>",
-            api_key="<your-key>",
+            azure_endpoint=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-08-01-preview",
+            api_key=os.getenv('AZURE_OPENAI_KEY'),
             api_version="2024-08-01-preview"
         ) 
 
@@ -50,15 +38,14 @@ with scenario_container:
     industry = st.text_input("Industry", placeholder="e.g., Healthcare, Finance", key="industry")  
     use_case = st.text_input("Use Case", placeholder="e.g., Chatbot, Data Analysis", key="use_case")  
 
-
-
 # Initialize session state for plan and plan history
 if 'plan' not in st.session_state:
     st.session_state.plan = {}
     st.session_state.plan_history = []
     st.session_state.st_memory = {}
     st.session_state.lt_memory = {}
-    update_sidebar() 
+    st_tools = StreamlitTools().update_sidebar(st.session_state.plan, st, sidebar_placeholder)
+
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
@@ -70,7 +57,6 @@ button_placeholder = st.empty()
 title_placeholder.title("Azure Multi-Agent Playground")
 # Create a text input for the user's query
 user_query = input_placeholder.text_input("Enter your query:", "", key="user_query")
-
 
 # Load the GIF once and store it in session state  
 if 'gif_base64' not in st.session_state:  
@@ -101,40 +87,50 @@ submit_clicked = button_placeholder.button("Submit")
 warning_placeholder = st.empty()  
 
 # Create a Submit button
-
 if __name__ == "__main__":   # Phase 1: Get the initial plan 
-
     if submit_clicked:
-        if user_query and (use_simons_key or (api_key.strip() and deployment_name.strip() and endpoint.strip())):
+        if user_query and (use_environment_key or (api_key.strip() and deployment_name.strip() and endpoint.strip())):
             # Clear placeholders
             title_placeholder.empty()
             input_placeholder.empty()
             button_placeholder.empty()
-            #st.sidebar.empty()
             gif_placeholder.empty()
             instructions_placeholder.empty()
-            plan_json, st_memory_json, lt_memory_json = get_initial_plan(industry, use_case, user_query)
-            user_message = get_initial_plan_message(plan_json, st_memory_json, lt_memory_json)
+
+            # Setup the MAS orchestrator
+            mas_orchestrator = MAS_orchestrator(client, pydantic_models, st, sidebar_placeholder)
+
+            plan_json, st_memory_json, lt_memory_json = mas_orchestrator.get_initial_plan(industry, use_case, user_query)
+            st.session_state.plan = plan_json
+
+            st_tools = StreamlitTools()
+            st_tools.update_sidebar(plan_json, st, sidebar_placeholder)
+            
+            user_message = mas_orchestrator.get_initial_plan_message(plan_json, st_memory_json, lt_memory_json, st_tools)
             print(user_message)
-            current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json = orchestrate_tasks_input(plan_json, st_memory_json, lt_memory_json)
-            user_message = orchestrate_tasks_input_message(agent_input_json, plan_json, st_memory_json, lt_memory_json)
+
+            current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json = mas_orchestrator.orchestrate_tasks_input(plan_json, st_memory_json, lt_memory_json)
+            user_message = mas_orchestrator.orchestrate_tasks_input_message(agent_input_json, plan_json, st_memory_json, lt_memory_json, st_tools)
             print("--------- inside 5")
             print(user_message)
-            agent_output_json, plan_json, st_memory_json, lt_memory_json, next_task_json, next_agent_input_json = orchestrate_tasks_output(current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json)
-            user_message = orchestrate_tasks_output_message(agent_output_json, plan_json, st_memory_json, lt_memory_json)
+
+            agent_output_json, plan_json, st_memory_json, lt_memory_json, next_task_json, next_agent_input_json = mas_orchestrator.orchestrate_tasks_output(current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json)
+            user_message = mas_orchestrator.orchestrate_tasks_output_message(agent_output_json, plan_json, st_memory_json, lt_memory_json, st_tools)
             print(user_message)
+
             while True:
-                current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json = orchestrate_tasks_input_loop(agent_output_json, plan_json, st_memory_json, lt_memory_json, next_task_json, next_agent_input_json)
-                user_message = orchestrate_tasks_input_message(agent_input_json, plan_json, st_memory_json, lt_memory_json)
+                current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json = mas_orchestrator.orchestrate_tasks_input_loop(agent_output_json, plan_json, st_memory_json, lt_memory_json, next_task_json, next_agent_input_json)
+                user_message = mas_orchestrator.orchestrate_tasks_input_message(agent_input_json, plan_json, st_memory_json, lt_memory_json, st_tools)
                 print(user_message) 
-                agent_output_json, plan_json, st_memory_json, lt_memory_json, next_task_json, next_agent_input_json = orchestrate_tasks_output_loop(current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json)
-                user_message = orchestrate_tasks_output_message(agent_output_json, plan_json, st_memory_json, lt_memory_json)
+                agent_output_json, plan_json, st_memory_json, lt_memory_json, next_task_json, next_agent_input_json = mas_orchestrator.orchestrate_tasks_output_loop(current_task_json, agent_input_json, plan_json, st_memory_json, lt_memory_json)
+                user_message = mas_orchestrator.orchestrate_tasks_output_message(agent_output_json, plan_json, st_memory_json, lt_memory_json, st_tools)
                 print(user_message)
                 completion_keys = ["Overall_execution_of_the_plan", "Overall execution of the plan"]
                 completion_statuses = ["complete", "completed", "successful"]
+
                 # Initialize plan_status
                 plan_status = ""
-                import json
+                
                 plan_json1 = json.loads(plan_json)
 
                 # Check for 'Overall execution of the plan' at the top level of plan3
@@ -144,8 +140,7 @@ if __name__ == "__main__":   # Phase 1: Get the initial plan
                         break
                 if plan_status in completion_statuses:
                     print("Plan execution completed.")
-                    final_output = summarize_final_output(plan_json)
+                    final_output = mas_orchestrator.summarize_final_output(plan_json, st_memory_json, lt_memory_json, st_tools)
                     print(final_output)
                     break
-                
         #-------------- Input selection - industry, use case, user_query -------------

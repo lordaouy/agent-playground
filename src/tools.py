@@ -1,11 +1,8 @@
 import json, base64
-import streamlit as st
 import streamlit.components.v1 as components
 
 class StreamlitTools:
-    def __init__(self, plan_json, st_memory):
-        self.plan_json = plan_json
-        self.st_memory = st_memory
+    def __init__(self):
         self.status_colors = {
             "": "#FFC107",               # Pending - Yellow
             "Pending": "#FFC107",
@@ -17,9 +14,9 @@ class StreamlitTools:
         }
         self.spinning_wheel_gif = "https://cdn.pixabay.com/animation/2023/10/10/13/27/13-27-45-28_512.gif"
 
-    def generate_sidebar(self):
+    def generate_sidebar(self, plan_json):
         html = self._generate_html_header()
-        tasks = self._load_tasks()
+        tasks = self._load_tasks(plan_json)
         sorted_tasks = self._sort_tasks(tasks)
         task_counter = 1
 
@@ -70,8 +67,8 @@ class StreamlitTools:
         <div class="sidebar">
         """
 
-    def _load_tasks(self):
-        plan_json1 = json.loads(self.plan_json)
+    def _load_tasks(self, plan_json):
+        plan_json1 = json.loads(plan_json)
         return plan_json1.get("Tasks", [])
 
     def _sort_tasks(self, tasks):
@@ -155,12 +152,21 @@ class StreamlitTools:
             <strong>Observation:</strong> {subtask.get('Sub_Task_Output_Observation', 'N/A')}
         """
     
+    def update_sidebar(self, plan_json, st, sidebar_placeholder):
+        if st.session_state.plan:
+            sidebar_html = self.generate_sidebar(plan_json)
+            with sidebar_placeholder:
+                components.html(sidebar_html, height=1000, scrolling=False)
+        else:
+            with sidebar_placeholder:
+                st.write("The plan will appear here once generated.")
+    
 class GeneralTools:
     def __init__(self):
         pass
 
     # Function to convert GIF to base64 string  
-    def get_gif_as_base64(file_path):  
+    def get_gif_as_base64(self, file_path):  
         with open(file_path, "rb") as gif_file:  
             gif_base64 = base64.b64encode(gif_file.read()).decode("utf-8")  
         return gif_base64  

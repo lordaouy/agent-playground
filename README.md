@@ -1,4 +1,4 @@
-# 🎮 Multi-Agent Playground
+# 🎮 Multi-Agent Playground (by Simon Lacasse)
 
 Welcome to the **Multi-Agent Playground**! This project showcases sophisticated multi-agent systems utilizing any LLM model to demonstrate dynamic planning, orchestration, and adaptability across industries and use cases.
 
